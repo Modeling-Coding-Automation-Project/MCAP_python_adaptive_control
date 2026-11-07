@@ -1,0 +1,6 @@
+[submodule "external_libraries/MCAP_python_optimization"]
+	path = external_libraries/MCAP_python_optimization
+	url = https://github.com/Modeling-Coding-Automation-Project/MCAP_python_optimization.git
+[submodule "sample/simulation_manager"]
+	path = sample/simulation_manager
+	url = https://github.com/Modeling-Coding-Automation-Project/simulation_manager.git
