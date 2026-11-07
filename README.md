@@ -29,6 +29,11 @@ python sample/data_driven/pi_tuning.py
 表示も行う場合は `requirements-plot.txt` をインストールし、サンプルに `--plot` を付けます。
 描画には `sample/simulation_manager` を使用します。
 
+GitHub Actionsで非公開サブモジュールを取得する場合は、このリポジトリのActions Secretに
+`MCAP_SUBMODULE_TOKEN` を設定してください。再帰的に参照する各リポジトリへの読み取り権限を持つ
+fine-grained PATまたはGitHub Appのトークンを指定します。未設定の場合は `github.token` を使いますが、
+別の非公開リポジトリへのアクセスはできません。トークンをコードや設定ファイルへ直接記載しないでください。
+
 ```python
 from data_driven import RationalFilter, LinearControllerBasis, vrft_least_squares
 
