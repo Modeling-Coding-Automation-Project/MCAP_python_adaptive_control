@@ -34,12 +34,14 @@ def _frit_objective(u, target, model, basis, options):
     def cost_gradient(parameters):
         numerator = parameters @ basis.numerators
         if numerator[0] == 0:
-            raise SingularInverseError("C^-1 requires a nonzero controller direct coefficient")
+            raise SingularInverseError(
+                "C^-1 requires a nonzero controller direct coefficient")
         # B(rho)e=A u, e=C(rho)^-1 u.
         try:
             inverse = RationalFilter(basis.denominator, numerator)
         except ValueError as error:
-            raise FloatingPointError("inverse filter coefficients are not representable") from error
+            raise FloatingPointError(
+                "inverse filter coefficients are not representable") from error
         inverse_output = inverse.filter(u)
         residual = target - model.filter(inverse_output)
         residual = residual[options.discard_samples:]
@@ -49,10 +51,13 @@ def _frit_objective(u, target, model, basis, options):
             try:
                 derivative_filter = RationalFilter(row, numerator)
             except ValueError as error:
-                raise FloatingPointError("sensitivity filter coefficients are not representable") from error
+                raise FloatingPointError(
+                    "sensitivity filter coefficients are not representable") from error
             derivative = model.filter(derivative_filter.filter(inverse_output))
-            gradient[index] = 2 * residual @ derivative[options.discard_samples:] / residual.size
-        cost = residual @ residual / residual.size + options.ridge * (parameters @ parameters)
+            gradient[index] = 2 * \
+                residual @ derivative[options.discard_samples:] / residual.size
+        cost = residual @ residual / residual.size + \
+            options.ridge * (parameters @ parameters)
         gradient += 2 * options.ridge * parameters
         return float(cost), gradient
     return cost_gradient

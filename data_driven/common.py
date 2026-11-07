@@ -29,7 +29,8 @@ class SolverOptions:
             if isinstance(value, (bool, np.bool_)) or not isinstance(value, Real) or not np.isfinite(value):
                 raise ValueError(f"{name} must be a finite real number")
         if self.ridge < 0 or self.tolerance <= 0 or self.rank_tolerance <= 0:
-            raise ValueError("ridge must be nonnegative; tolerances must be positive")
+            raise ValueError(
+                "ridge must be nonnegative; tolerances must be positive")
         if (isinstance(self.max_iterations, (bool, np.bool_))
                 or not isinstance(self.max_iterations, (int, np.integer)) or self.max_iterations < 1):
             raise ValueError("max_iterations must be a positive integer")

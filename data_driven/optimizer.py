@@ -20,7 +20,8 @@ def _panoc_module():
     path = (Path(__file__).resolve().parents[1] / "external_libraries" /
             "MCAP_python_optimization" / "python_optimization" / "panoc.py")
     if not path.is_file():
-        raise ImportError("PANOC submodule is missing; run git submodule update --init --recursive")
+        raise ImportError(
+            "PANOC submodule is missing; run git submodule update --init --recursive")
     name = "_mcap_adaptive_control_panoc"
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
@@ -57,7 +58,8 @@ def optimize(cost_gradient, parameter_count, initial, lower, upper, options):
     parameters = initial.copy().reshape(-1, 1)
     cache = panoc.PANOC_Cache(parameter_count, options.tolerance, 5)
     solver = panoc.PANOC_Optimizer(lambda p: evaluate(p)[0], lambda p: evaluate(p)[1],
-                                   cache, lower.reshape(-1, 1), upper.reshape(-1, 1),
+                                   cache, lower.reshape(-1,
+                                                        1), upper.reshape(-1, 1),
                                    max_iteration=options.max_iterations)
     try:
         status = solver.solve(parameters)
@@ -74,7 +76,8 @@ def optimize(cost_gradient, parameter_count, initial, lower, upper, options):
     if np.any(parameters < lower) or np.any(parameters > upper):
         return failure(parameter_count, Status.NON_FINITE, status.number_of_iteration)
     final_status = Status.SUCCESS if status.has_converged() else Status.ITERATION_LIMIT
-    projected = np.clip(parameters - cache.gamma * gradient.reshape(-1), lower, upper)
+    projected = np.clip(parameters - cache.gamma *
+                        gradient.reshape(-1), lower, upper)
     if np.linalg.norm(parameters - projected) > 10 * options.tolerance:
         final_status = Status.ITERATION_LIMIT
     return FitResult(parameters, final_status, cost, status.number_of_iteration)

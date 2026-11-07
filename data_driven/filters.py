@@ -13,11 +13,14 @@ class RationalFilter:
         numerator = vector(numerator, "numerator")
         denominator = vector(denominator, "denominator")
         if denominator[0] == 0:
-            raise ValueError("denominator[0] must be nonzero for a causal filter")
+            raise ValueError(
+                "denominator[0] must be nonzero for a causal filter")
         size = max(numerator.size, denominator.size)
         with np.errstate(over="ignore", invalid="ignore"):
-            self.numerator = np.pad(numerator, (0, size - numerator.size)) / denominator[0]
-            self.denominator = np.pad(denominator, (0, size - denominator.size)) / denominator[0]
+            self.numerator = np.pad(
+                numerator, (0, size - numerator.size)) / denominator[0]
+            self.denominator = np.pad(
+                denominator, (0, size - denominator.size)) / denominator[0]
         if not (np.all(np.isfinite(self.numerator)) and np.all(np.isfinite(self.denominator))):
             raise ValueError("normalizing filter coefficients overflowed")
 
@@ -44,6 +47,7 @@ class RationalFilter:
 
 class FilterState:
     """Direct form II transposed state; storage is O(filter order)."""
+
     def __init__(self, model):
         self.model = model
         self.delay = np.zeros(model.numerator.size - 1)
@@ -59,7 +63,8 @@ class FilterState:
             return float(b[0] * value)
         output = b[0] * value + self.delay[0]
         for index in range(self.delay.size - 1):
-            self.delay[index] = self.delay[index + 1] + b[index + 1] * value - a[index + 1] * output
+            self.delay[index] = self.delay[index + 1] + \
+                b[index + 1] * value - a[index + 1] * output
         self.delay[-1] = b[-1] * value - a[-1] * output
         return float(output)
 
@@ -70,6 +75,7 @@ class LinearControllerBasis:
 For ``frit_least_squares`` this object instead represents C(rho)^-1.
 Do not interpret those fitted inverse coefficients as forward PID gains.
 """
+
     def __init__(self, numerators, denominator):
         numerators = np.asarray(numerators, dtype=float)
         denominator = vector(denominator, "denominator")
@@ -79,8 +85,10 @@ Do not interpret those fitted inverse coefficients as forward PID gains.
             raise ValueError("denominator[0] must be nonzero")
         size = max(numerators.shape[1], denominator.size)
         with np.errstate(over="ignore", invalid="ignore"):
-            self.numerators = np.pad(numerators, ((0, 0), (0, size - numerators.shape[1]))) / denominator[0]
-            self.denominator = np.pad(denominator, (0, size - denominator.size)) / denominator[0]
+            self.numerators = np.pad(
+                numerators, ((0, 0), (0, size - numerators.shape[1]))) / denominator[0]
+            self.denominator = np.pad(
+                denominator, (0, size - denominator.size)) / denominator[0]
         if not (np.all(np.isfinite(self.numerators)) and np.all(np.isfinite(self.denominator))):
             raise ValueError("normalizing basis coefficients overflowed")
 

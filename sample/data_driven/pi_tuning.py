@@ -53,19 +53,22 @@ def run_demo():
     # controller is linear in rho. Here C^-1=(rho0+rho1*z^-1)/(1.5-1.2*z^-1).
     # Those coefficients are not [Kp, Ki]; the expected result is [1, -1].
     inverse_basis = LinearControllerBasis([[1., 0.], [0., 1.]], [1.5, -1.2])
-    fits["FRIT inverse least squares"] = frit_least_squares(u, y, model, inverse_basis, options)
+    fits["FRIT inverse least squares"] = frit_least_squares(
+        u, y, model, inverse_basis, options)
     if not all(result.success for result in fits.values()):
-        raise RuntimeError("At least one tuning method failed; inspect FitResult.status")
+        raise RuntimeError(
+            "At least one tuning method failed; inspect FitResult.status")
 
     # 4. Independently simulate the tuned controller in feedback.
     reference = np.ones(100)
     desired = model.filter(reference)
-    trajectories = {"initial PI": closed_loop(basis.controller(initial), reference)}
+    trajectories = {"initial PI": closed_loop(
+        basis.controller(initial), reference)}
     for name, result in fits.items():
         controller = (inverse_basis.controller(result.parameters).inverse()
                       if name == "FRIT inverse least squares" else basis.controller(result.parameters))
         trajectories[name] = closed_loop(controller, reference)
-    return {"fits": fits, "time": sample_time*np.arange(reference.size),
+    return {"fits": fits, "time": sample_time * np.arange(reference.size),
             "reference": reference, "desired": desired, "trajectories": trajectories}
 
 
@@ -85,14 +88,17 @@ def plot_demo(result):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--plot", action="store_true", help="plot with simulation_manager")
+    parser.add_argument("--plot", action="store_true",
+                        help="plot with simulation_manager")
     args = parser.parse_args()
     result = run_demo()
     for name, fit in result["fits"].items():
-        rmse = np.sqrt(np.mean((result["trajectories"][name] - result["desired"])**2))
+        rmse = np.sqrt(
+            np.mean((result["trajectories"][name] - result["desired"])**2))
         print(f"{name}: rho={fit.parameters}, status={fit.status.value}, "
               f"cost={fit.cost:.3e}, iterations={fit.iterations}, step RMSE={rmse:.3e}")
-    initial_rmse = np.sqrt(np.mean((result["trajectories"]["initial PI"] - result["desired"])**2))
+    initial_rmse = np.sqrt(
+        np.mean((result["trajectories"]["initial PI"] - result["desired"])**2))
     print(f"Initial PI step RMSE: {initial_rmse:.3e}")
     if args.plot:
         plot_demo(result)

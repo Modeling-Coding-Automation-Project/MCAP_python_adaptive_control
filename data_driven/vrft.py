@@ -19,14 +19,16 @@ def vrft_regression(u, y, model, basis, options=None, prefilter=None):
     matrix = basis.filter(y - model.filter(y))
     if prefilter is not None:
         target = prefilter.filter(target)
-        matrix = np.column_stack([prefilter.filter(column) for column in matrix.T])
+        matrix = np.column_stack([prefilter.filter(column)
+                                 for column in matrix.T])
     return matrix[options.discard_samples:], target[options.discard_samples:]
 
 
 def vrft_least_squares(u, y, model, basis, options=None, prefilter=None):
     u, y, options = dataset(u, y, options)
     try:
-        matrix, target = vrft_regression(u, y, model, basis, options, prefilter)
+        matrix, target = vrft_regression(
+            u, y, model, basis, options, prefilter)
     except FloatingPointError:
         return failure(basis.parameter_count, Status.NON_FINITE)
     return solve_least_squares(matrix, target, options)
@@ -35,12 +37,14 @@ def vrft_least_squares(u, y, model, basis, options=None, prefilter=None):
 def vrft_optimize(u, y, model, basis, initial, lower, upper, options=None, prefilter=None):
     u, y, options = dataset(u, y, options)
     try:
-        matrix, target = vrft_regression(u, y, model, basis, options, prefilter)
+        matrix, target = vrft_regression(
+            u, y, model, basis, options, prefilter)
     except FloatingPointError:
         return failure(basis.parameter_count, Status.NON_FINITE)
     # Precompute the small quadratic: each PANOC iteration is O(P^2),
     # independent of the number of experimental samples.
-    gram = matrix.T @ matrix / target.size + options.ridge * np.eye(basis.parameter_count)
+    gram = matrix.T @ matrix / target.size + \
+        options.ridge * np.eye(basis.parameter_count)
     linear = matrix.T @ target / target.size
     constant = float(target @ target / target.size)
 
@@ -48,7 +52,8 @@ def vrft_optimize(u, y, model, basis, initial, lower, upper, options=None, prefi
         value = parameters @ gram @ parameters - 2 * linear @ parameters + constant
         return float(value), 2 * (gram @ parameters - linear)
 
-    result = optimize(cost_gradient, basis.parameter_count, initial, lower, upper, options)
+    result = optimize(cost_gradient, basis.parameter_count,
+                      initial, lower, upper, options)
     if result.status in (Status.SUCCESS, Status.ITERATION_LIMIT):
         residual = matrix @ result.parameters - target
         result.cost = float(residual @ residual / target.size
