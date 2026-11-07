@@ -1,6 +1,7 @@
 """Shared result types and validation for zero-state, discrete-time tuning."""
 from dataclasses import dataclass
 from enum import Enum
+from numbers import Real
 
 import numpy as np
 
@@ -25,13 +26,15 @@ class SolverOptions:
     def validate(self, sample_count):
         for name in ("ridge", "tolerance", "rank_tolerance"):
             value = getattr(self, name)
-            if not np.isscalar(value) or not np.isfinite(value):
-                raise ValueError(f"{name} must be finite")
+            if isinstance(value, (bool, np.bool_)) or not isinstance(value, Real) or not np.isfinite(value):
+                raise ValueError(f"{name} must be a finite real number")
         if self.ridge < 0 or self.tolerance <= 0 or self.rank_tolerance <= 0:
             raise ValueError("ridge must be nonnegative; tolerances must be positive")
-        if not isinstance(self.max_iterations, (int, np.integer)) or self.max_iterations < 1:
+        if (isinstance(self.max_iterations, (bool, np.bool_))
+                or not isinstance(self.max_iterations, (int, np.integer)) or self.max_iterations < 1):
             raise ValueError("max_iterations must be a positive integer")
-        if (not isinstance(self.discard_samples, (int, np.integer))
+        if (isinstance(self.discard_samples, (bool, np.bool_))
+                or not isinstance(self.discard_samples, (int, np.integer))
                 or not 0 <= self.discard_samples < sample_count):
             raise ValueError("discard_samples must leave at least one sample")
 

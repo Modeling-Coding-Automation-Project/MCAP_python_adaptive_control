@@ -15,8 +15,9 @@ class RationalFilter:
         if denominator[0] == 0:
             raise ValueError("denominator[0] must be nonzero for a causal filter")
         size = max(numerator.size, denominator.size)
-        self.numerator = np.pad(numerator, (0, size - numerator.size)) / denominator[0]
-        self.denominator = np.pad(denominator, (0, size - denominator.size)) / denominator[0]
+        with np.errstate(over="ignore", invalid="ignore"):
+            self.numerator = np.pad(numerator, (0, size - numerator.size)) / denominator[0]
+            self.denominator = np.pad(denominator, (0, size - denominator.size)) / denominator[0]
         if not (np.all(np.isfinite(self.numerator)) and np.all(np.isfinite(self.denominator))):
             raise ValueError("normalizing filter coefficients overflowed")
 
@@ -77,8 +78,9 @@ Do not interpret those fitted inverse coefficients as forward PID gains.
         if denominator[0] == 0:
             raise ValueError("denominator[0] must be nonzero")
         size = max(numerators.shape[1], denominator.size)
-        self.numerators = np.pad(numerators, ((0, 0), (0, size - numerators.shape[1]))) / denominator[0]
-        self.denominator = np.pad(denominator, (0, size - denominator.size)) / denominator[0]
+        with np.errstate(over="ignore", invalid="ignore"):
+            self.numerators = np.pad(numerators, ((0, 0), (0, size - numerators.shape[1]))) / denominator[0]
+            self.denominator = np.pad(denominator, (0, size - denominator.size)) / denominator[0]
         if not (np.all(np.isfinite(self.numerators)) and np.all(np.isfinite(self.denominator))):
             raise ValueError("normalizing basis coefficients overflowed")
 

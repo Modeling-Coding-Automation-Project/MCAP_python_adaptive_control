@@ -170,6 +170,9 @@ def test_failure_on_unstable_overflow(experiment):
     SolverOptions(ridge=-1), SolverOptions(tolerance=0), SolverOptions(max_iterations=0),
     SolverOptions(rank_tolerance=np.nan), SolverOptions(discard_samples=256),
     SolverOptions(discard_samples=1.5),
+    SolverOptions(discard_samples=False), SolverOptions(max_iterations=True),
+    SolverOptions(max_iterations=2.5), SolverOptions(tolerance="invalid"),
+    SolverOptions(ridge=1j), SolverOptions(ridge=True),
 ])
 def test_invalid_options(bad_options, experiment):
     u, y, model, basis, _ = experiment
@@ -193,3 +196,20 @@ def test_object_api(experiment):
     assert VRFT(model, basis).fit_least_squares(u, y).success
     assert FRITLeastSquares(model, inverse_basis).fit_least_squares(u, y).success
     assert FRIT(model, basis).fit_iterative(u, y, [.9, 1.4], [.1, .1], [3, 6]).success
+
+
+def test_mutated_options_are_revalidated(experiment):
+    u, y, model, basis, _ = experiment
+    options = SolverOptions()
+    assert vrft_least_squares(u, y, model, basis, options).success
+    options.tolerance = np.inf
+    with pytest.raises(ValueError, match="finite real"):
+        vrft_least_squares(u, y, model, basis, options)
+
+
+def test_finite_but_unrepresentable_inverse_reports_numerical_failure():
+    model = RationalFilter([1.], [1.])
+    basis = LinearControllerBasis([[1.]], [1.])
+    result = frit_optimize([1., 2.], [.2, .4], model, basis,
+                           [1e-320], [1e-320], [1.])
+    assert result.status == Status.NON_FINITE

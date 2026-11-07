@@ -46,7 +46,8 @@ def optimize(cost_gradient, parameter_count, initial, lower, upper, options):
         if not np.all(np.isfinite(flat)):
             raise FloatingPointError("trial parameters are not finite")
         if last_parameters is None or not np.array_equal(last_parameters, flat):
-            value, gradient = cost_gradient(flat)
+            with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+                value, gradient = cost_gradient(flat)
             if not np.isfinite(value) or not np.all(np.isfinite(gradient)):
                 raise FloatingPointError("objective or gradient is not finite")
             last_parameters = flat.copy()
