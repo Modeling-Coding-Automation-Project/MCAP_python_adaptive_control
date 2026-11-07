@@ -55,7 +55,7 @@ PANOCは非凸FRITに対して大域的最適解を保証しません。
 ## APIと結果
 
 ```python
-options = SolverOptions(ridge=0.0, tolerance=1e-8, max_iterations=500,
+options = SolverOptions(ridge=0.0, tolerance=2e-5, max_iterations=500,
                         rank_tolerance=1e-10, discard_samples=0)
 
 vrft_least_squares(u, y, model, basis, options, prefilter=None)
@@ -81,7 +81,10 @@ frit_optimize(u, y, model, basis, initial, lower, upper, options)
 
 ## 数値計算と検証
 
-Python版はNumPy float64による基準実装です。C++版は固定長配列とGivens QRを用います。
+Python版はNumPy float64による基準実装です。C++版は固定長配列と
+`python_numpy_to_cpp` の既存QRを用います。反復ソルバーの既定許容値は `2e-5` です。
+これは射影残差の停止条件で、係数の絶対誤差ではありません。厳密な係数回復が
+必要な場合は、明示的に小さい許容値を指定し、実際の応答も確認してください。
 通常の全階数問題で解は一致しますが、特異値とQR対角成分の違いにより、閾値付近の階数判定は一致を保証しません。
 データの励起不足、過大なスケール差、測定ノイズ、目標モデルの実現可能性を確認してください。
 入力・出力の同時刻対応やサンプリング周期を誤ると、両言語が同じ結果でも正しい制御器にはなりません。

@@ -21,13 +21,16 @@ Python 3.10以降、NumPyを使用します。コア実装はSciPyに依存し�
 
 ```bash
 git submodule update --init --recursive
-python -m pip install -r requirements-dev.txt
+python -m pip install -r requirements-dev.txt -r requirements-plot.txt
 python -m pytest -q
-python sample/data_driven/pi_tuning.py
+python sample/data_driven/vrft_demo.py
+python sample/data_driven/frit_demo.py
 ```
 
-表示も行う場合は `requirements-plot.txt` をインストールし、サンプルに `--plot` を付けます。
-描画には `sample/simulation_manager` を使用します。
+通常実行では `SimulationPlotterDash` で応答をHTML表示します。先に `requirements-plot.txt` をインストールしてください。
+自動テストなどで表示が不要な場合だけ `--no-plot` を指定します。
+描画には、このリポジトリ内の `sample/simulation_manager` を使用します。
+ブラウザが起動できない環境では、表示されたHTMLファイルのパスを開いてください。
 
 GitHub Actionsで非公開サブモジュールを取得する場合は、このリポジトリのActions Secretに
 `MCAP_SUBMODULE_TOKEN` を設定してください。再帰的に参照する各リポジトリへの読み取り権限を持つ
@@ -51,7 +54,7 @@ if result.success:
 
 - `data_driven/`: フィルタ、VRFT、FRIT、既存PANOCへのアダプタ
 - `tests/`: 既知解、解析勾配、異常系、閉ループ検証
-- `sample/data_driven/`: 四方式を使ったPI調整例
+- `sample/data_driven/`: VRFT・FRITを別々に実行するPI調整例
 - `external_libraries/MCAP_python_optimization/`: PANOC実装（サブモジュール）
 - `.github/`: 単体テスト・サンプル実行、Dependabot
 

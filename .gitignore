@@ -485,3 +485,6 @@ $RECYCLE.BIN/
 
 # Windows app
 *.exe
+
+# Generated interactive sample plots.
+/cache/

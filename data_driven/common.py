@@ -18,7 +18,7 @@ class Status(str, Enum):
 @dataclass
 class SolverOptions:
     ridge: float = 0.0
-    tolerance: float = 1e-8
+    tolerance: float = 2e-5
     max_iterations: int = 500
     rank_tolerance: float = 1e-10
     discard_samples: int = 0

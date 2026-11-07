@@ -71,11 +71,29 @@ def test_frit_exact_inverse_linear_recovery(experiment):
 @pytest.mark.parametrize("solver", [vrft_optimize, frit_optimize])
 def test_iterative_exact_pi_recovery(solver, experiment):
     u, y, model, basis, _ = experiment
-    result = solver(u, y, model, basis, [.9, 1.4], [.1, .1], [3, 6])
+    # Coefficient recovery needs tighter accuracy than the deployment default;
+    # PANOC tolerance bounds a scaled residual, not parameter error.
+    result = solver(u, y, model, basis, [.9, 1.4], [.1, .1], [3, 6],
+                    SolverOptions(tolerance=1e-8))
     assert result.success
     assert 0 < result.iterations < 100
     np.testing.assert_allclose(result.parameters, [1.2, 3], atol=3e-6)
     assert result.cost < 1e-13
+
+
+@pytest.mark.parametrize("solver", [vrft_optimize, frit_optimize])
+def test_default_tolerance_converges_and_reduces_objective(solver, experiment):
+    u, y, model, basis, _ = experiment
+    initial = np.array([.9, 1.4])
+    if solver is vrft_optimize:
+        matrix, target = vrft_regression(u, y, model, basis)
+        initial_cost = np.mean((matrix @ initial - target)**2)
+    else:
+        initial_cost, _ = frit_cost_gradient(initial, u, y, model, basis)
+    result = solver(u, y, model, basis, initial, [.1, .1], [3, 6])
+    assert result.success and np.all(np.isfinite(result.parameters))
+    assert result.cost < initial_cost * 1e-4
+    assert result.iterations < SolverOptions().max_iterations
 
 
 def test_analytic_frit_gradient_matches_central_difference(experiment):
@@ -109,7 +127,7 @@ def test_bounds_are_respected_and_cost_is_returned_point(experiment):
 def test_ridge_regularization_matches_independent_normal_equations(experiment):
     u, y, model, basis, _ = experiment
     y = y + np.random.default_rng(42).normal(0, .01, y.size)
-    options = SolverOptions(ridge=.002, discard_samples=7)
+    options = SolverOptions(ridge=.002, discard_samples=7, tolerance=1e-8)
     matrix, target = vrft_regression(u, y, model, basis, options)
     expected = np.linalg.solve(matrix.T @ matrix / target.size + options.ridge*np.eye(2),
                                matrix.T @ target / target.size)
