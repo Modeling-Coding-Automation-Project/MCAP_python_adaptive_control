@@ -2,7 +2,10 @@ name: Test data-driven control
 
 on:
   push:
-    branches: [feature/create_data_driven, main, develop]
+    branches: 
+    - develop
+    - feature/*
+    
   pull_request:
   workflow_dispatch:
 
