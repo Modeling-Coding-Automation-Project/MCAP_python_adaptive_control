@@ -1,8 +1,8 @@
-"""FRITによる制御器設計と閉ループ応答の比較。
+"""FRIT controller design and closed-loop response comparison.
 
-模擬プラントの入出力データから最小二乗法とPANOCで制御器を調整し、
-初期制御器の応答および規範モデルの応答と比較する。
-描画せずに実行する場合は --no-plot を指定する。
+Tune controllers from simulated plant input/output data using least squares
+and PANOC, then compare their responses with the initial controller and the
+reference model. Use --no-plot to run without plotting.
 """
 import argparse
 from pathlib import Path
@@ -11,7 +11,7 @@ import sys
 import numpy as np
 
 
-# このファイルを直接実行する場合も、リポジトリ内のモジュールを参照する。
+# Allow direct execution to import modules from this repository.
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -25,13 +25,14 @@ from data_driven import (
 
 
 def create_design():
-    """実験条件、規範モデル、制御器の構造と最適化条件を設定する。"""
+    """Define the experiment, reference model, controller basis, and solver settings."""
     sample_time = 0.1
-    # 規範モデル M(z) = 0.3*z^-1 / (1 - 0.7*z^-1)。
+    # Reference model: M(z) = 0.3*z^-1 / (1 - 0.7*z^-1).
     model = RationalFilter([0.0, 0.3], [1.0, -0.7])
-    # PI制御器のパラメータは [比例ゲイン Kp, 積分ゲイン Ki]。
+    # PI controller parameters: [proportional gain Kp, integral gain Ki].
     basis = LinearControllerBasis.pi(sample_time)
-    # 最小二乗法では逆制御器 C^-1 をパラメータ化する。係数はPIゲインではない。
+    # Least squares parameterizes the inverse controller C^-1; its coefficients
+    # are not PI gains.
     inverse_basis = LinearControllerBasis(
         [[1.0, 0.0], [0.0, 1.0]], [1.5, -1.2])
     return {
@@ -39,8 +40,9 @@ def create_design():
         "sample_count": 128,
         "simulation_count": 100,
         "excitation_seed": 0x12345678,
-        # 模擬プラント: x(k+1) = 0.8*x(k) + 0.2*u(k), y(k) = x(k)。
-        # プラント係数はデータ収集と応答評価にのみ使い、制御器の調整には渡さない。
+        # Simulated plant: x(k+1) = 0.8*x(k) + 0.2*u(k), y(k) = x(k).
+        # Plant coefficients are used only for data collection and response evaluation,
+        # not for controller tuning.
         "plant_a": 0.8,
         "plant_b": 0.2,
         "model": model,
@@ -55,26 +57,26 @@ def create_design():
 
 
 def run_demo(design=None):
-    """入出力データから制御器を調整し、単位ステップ応答を返す。"""
+    """Tune controllers from input/output data and return their unit-step responses."""
     design = create_design() if design is None else design
     model, basis, options = design["model"], design["basis"], design["options"]
 
-    # 1. 初期状態ゼロのプラントから入出力データを収集する。
-    # 実機で設計する場合は、この部分を計測済みの入力 u と出力 y に置き換える。
+    # 1. Collect input/output data from the plant starting at zero state.
+    # For a physical system, replace this section with measured input u and output y.
     u = np.zeros(design["sample_count"])
     y = np.zeros(design["sample_count"])
     random_state = design["excitation_seed"]
     plant_state = 0.0
     for index in range(u.size):
-        # 線形合同法で再現可能な励振入力を生成する。
+        # Generate reproducible excitation using a linear congruential generator.
         random_state = (1664525 * random_state + 1013904223) & 0xFFFFFFFF
         u[index] = (random_state >> 16) / 32768.0 - 1.0
         y[index] = plant_state
         plant_state = (design["plant_a"] * plant_state
                        + design["plant_b"] * u[index])
 
-    # 2. 入出力データ、規範モデル、制御器の基底からパラメータを求める。
-    # 最小二乗法と、上下限制約付きのPANOCによる反復最適化を比較する。
+    # 2. Fit parameters using input/output data, the reference model, and the basis.
+    # Compare least squares with iterative PANOC optimization under parameter bounds.
     inverse_basis = design["inverse_basis"]
     direct_tuner = FRITLeastSquares(model, inverse_basis)
     tuner = FRIT(model, basis)
@@ -86,8 +88,8 @@ def run_demo(design=None):
         raise RuntimeError("Tuning failed: " + ", ".join(
             f"{name}={fit.status.value}" for name, fit in fits.items()))
 
-    # 3. 初期制御器と、調整後の制御器を組み立てる。
-    # 最小二乗法で得た逆制御器 C^-1 を反転し、制御器 C として使う。
+    # 3. Build the initial and tuned controllers.
+    # Invert the least-squares inverse controller C^-1 to obtain controller C.
     direct_controller = inverse_basis.controller(direct.parameters).inverse()
     controllers = {
         "initial PI": basis.controller(design["initial"]),
@@ -95,8 +97,8 @@ def run_demo(design=None):
         "FRIT PANOC": basis.controller(iterative.parameters),
     }
 
-    # 4. 各制御器の閉ループを初期状態ゼロから独立にシミュレーションする。
-    # 各時刻で y(k) を測定し、偏差から u(k) を計算して x(k+1) を更新する。
+    # 4. Simulate each closed loop independently from zero state.
+    # At each step, measure y(k), compute u(k) from the error, and update x(k+1).
     reference = np.ones(design["simulation_count"])
     desired = np.zeros(reference.size)
     trajectories = {name: np.zeros(reference.size) for name in controllers}
@@ -122,7 +124,7 @@ def run_demo(design=None):
 
 
 def plot_demo(result):
-    """収集した入出力データ、目標追従応答、制御入力を描画する。"""
+    """Plot the recorded input/output data, tracking responses, and control inputs."""
     from sample.simulation_manager.visualize.simulation_plotter_dash import (
         SimulationPlotterDash,
     )
@@ -154,7 +156,7 @@ def plot_demo(result):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--no-plot", action="store_true",
-                        help="応答のHTML描画を省略する")
+                        help="skip HTML response plotting")
     args = parser.parse_args()
 
     design = create_design()
