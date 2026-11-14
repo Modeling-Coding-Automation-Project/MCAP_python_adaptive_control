@@ -1,1 +1,11 @@
+# Data-driven control
 numpy>=1.24
+
+# Plotting and simulation examples
+plotly>=5.18
+matplotlib
+mplcursors
+scipy
+
+# Tests
+pytest>=7

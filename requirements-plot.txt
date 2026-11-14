@@ -1,2 +1,0 @@
--r requirements.txt
-plotly>=5.18

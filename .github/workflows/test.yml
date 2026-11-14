@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
-      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pip install -r requirements.txt
       - run: python -m pytest -q
       - run: python sample/data_driven/vrft_demo.py --no-plot
       - run: python sample/data_driven/frit_demo.py --no-plot

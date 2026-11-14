@@ -21,13 +21,14 @@ Python 3.10以降、NumPyを使用します。コア実装はSciPyに依存し�
 
 ```bash
 git submodule update --init --recursive
-python -m pip install -r requirements-dev.txt -r requirements-plot.txt
+python -m pip install -r requirements.txt
 python -m pytest -q
 python sample/data_driven/vrft_demo.py
 python sample/data_driven/frit_demo.py
 ```
 
-通常実行では `SimulationPlotterDash` で応答をHTML表示します。先に `requirements-plot.txt` をインストールしてください。
+実行・描画・テストに必要なPythonパッケージは、すべて `requirements.txt` にまとめています。
+通常実行では `SimulationPlotterDash` で応答をHTML表示します。
 自動テストなどで表示が不要な場合だけ `--no-plot` を指定します。
 描画には、このリポジトリ内の `sample/simulation_manager` を使用します。
 ブラウザが起動できない環境では、表示されたHTMLファイルのパスを開いてください。
