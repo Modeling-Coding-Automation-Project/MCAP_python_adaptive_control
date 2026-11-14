@@ -4,7 +4,6 @@ on:
   push:
     branches: 
     - develop
-    - feature/*
     
   pull_request:
   workflow_dispatch:
@@ -17,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.12', '3.14']
+        python-version: ['3.12', '3.14']
     steps:
       - uses: actions/checkout@v7
         with:
