@@ -1,86 +1,77 @@
-"""VRFT design workflow: collect data, tune controllers, and simulate feedback.
+"""VRFTによる制御器設計と閉ループ応答の比較。
 
-Python generates the C++ problem configuration before tuning, then runs the
-same experiment and feedback simulation as vrft_demo.cpp. Python plots the
-time series with Dash; the C++ example prints them to the terminal.
-Use --no-plot for automated runs. This file is identical in both repositories.
+模擬プラントの入出力データから最小二乗法とPANOCで制御器を調整し、
+初期制御器の応答および規範モデルの応答と比較する。
+描画せずに実行する場合は --no-plot を指定する。
 """
 import argparse
-from importlib import import_module
 from pathlib import Path
 import sys
 
 import numpy as np
 
 
-# The C++ checkout uses sample/, and the Python checkout uses sample/data_driven/.
-SAMPLE_DIRECTORY = Path(__file__).resolve().parent
-REPOSITORY = (SAMPLE_DIRECTORY.parent if SAMPLE_DIRECTORY.name == "sample"
-              else SAMPLE_DIRECTORY.parents[1])
-sys.path.insert(0, str(REPOSITORY))
-if (REPOSITORY / "CMakeLists.txt").is_file():
-    from external_libraries.MCAP_python_adaptive_control import data_driven as adaptive_control
-else:
-    # In the standalone Python checkout, data_driven is the library itself.
-    adaptive_control = import_module("data_driven")
+# このファイルを直接実行する場合も、リポジトリ内のモジュールを参照する。
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from data_driven import (
+    VRFT,
+    LinearControllerBasis,
+    RationalFilter,
+    SolverOptions,
+)
 
 
 def create_design():
-    """1. Choose the experiment, target response, and controller structure."""
-    sample_time = .1
-    model = adaptive_control.RationalFilter([0., .3], [1., -.7])
-    basis = adaptive_control.LinearControllerBasis.pi(sample_time)
+    """実験条件、規範モデル、制御器の構造と最適化条件を設定する。"""
+    sample_time = 0.1
+    # 規範モデル M(z) = 0.3*z^-1 / (1 - 0.7*z^-1)。
+    model = RationalFilter([0.0, 0.3], [1.0, -0.7])
+    # PI制御器のパラメータは [比例ゲイン Kp, 積分ゲイン Ki]。
+    basis = LinearControllerBasis.pi(sample_time)
 
     return {
-        "sample_time": sample_time, "sample_count": 128,
-        "simulation_count": 100, "excitation_seed": 0x12345678,
-        # Simulated plant: x(k+1)=.8*x(k)+.2*u(k), y(k)=x(k).
-        # This plant is only used to collect data and evaluate the controllers.
-        "plant_a": .8, "plant_b": .2,
-        "model": model, "basis": basis, "inverse_basis": None,
-        "initial": np.array([.7, 1.0]),
-        "lower": np.array([.1, .1]), "upper": np.array([3., 6.]),
-        "options": adaptive_control.SolverOptions(
+        "sample_time": sample_time,
+        "sample_count": 128,
+        "simulation_count": 100,
+        "excitation_seed": 0x12345678,
+        # 模擬プラント: x(k+1) = 0.8*x(k) + 0.2*u(k), y(k) = x(k)。
+        # プラント係数はデータ収集と応答評価にのみ使い、制御器の調整には渡さない。
+        "plant_a": 0.8,
+        "plant_b": 0.2,
+        "model": model,
+        "basis": basis,
+        "initial": np.array([0.7, 1.0]),
+        "lower": np.array([0.1, 0.1]),
+        "upper": np.array([3.0, 6.0]),
+        "options": SolverOptions(
             tolerance=2e-5, max_iterations=1000),
     }
 
 
-def generate_cpp(design, output_dir=None, check=False):
-    """Generate fixed-size C++ types and settings before running the experiment."""
-    deploy_module = REPOSITORY / "data_driven" / "data_driven_deploy.py"
-    if not deploy_module.is_file():
-        if output_dir is not None or check:
-            raise RuntimeError(
-                "C++ generation is available in python_adaptive_control_to_cpp")
-        return None
-    from data_driven.data_driven_deploy import DataDrivenDeploy
-    destination = REPOSITORY if output_dir is None else Path(output_dir)
-    path = DataDrivenDeploy.generate_vrft_cpp_code(
-        design, destination, check=check)
-    print(f"C++ header {'verified' if check else 'generated'}: {path}")
-    return path
-
-
 def run_demo(design=None):
+    """入出力データから制御器を調整し、単位ステップ応答を返す。"""
     design = create_design() if design is None else design
     model, basis, options = design["model"], design["basis"], design["options"]
 
-    # 2. Collect one input/output experiment from a zero-state plant.
-    # Replace this loop with measured u,y when tuning a physical system.
+    # 1. 初期状態ゼロのプラントから入出力データを収集する。
+    # 実機で設計する場合は、この部分を計測済みの入力 u と出力 y に置き換える。
     u = np.zeros(design["sample_count"])
     y = np.zeros(design["sample_count"])
     random_state = design["excitation_seed"]
     plant_state = 0.0
     for index in range(u.size):
+        # 線形合同法で再現可能な励振入力を生成する。
         random_state = (1664525 * random_state + 1013904223) & 0xFFFFFFFF
         u[index] = (random_state >> 16) / 32768.0 - 1.0
         y[index] = plant_state
-        plant_state = design["plant_a"] * \
-            plant_state + design["plant_b"] * u[index]
+        plant_state = (design["plant_a"] * plant_state
+                       + design["plant_b"] * u[index])
 
-    # 3. Tune from the recorded data, target model, and controller basis.
-    # Neither tuning method receives the simulated plant coefficients.
-    tuner = adaptive_control.VRFT(model, basis)
+    # 2. 入出力データ、規範モデル、制御器の基底からパラメータを求める。
+    # 最小二乗法と、上下限制約付きのPANOCによる反復最適化を比較する。
+    tuner = VRFT(model, basis)
     direct = tuner.fit_least_squares(u, y, options)
     iterative = tuner.fit_iterative(
         u, y, design["initial"], design["lower"], design["upper"], options)
@@ -89,15 +80,15 @@ def run_demo(design=None):
         raise RuntimeError("Tuning failed: " + ", ".join(
             f"{name}={fit.status.value}" for name, fit in fits.items()))
 
-    # 4. Build the initial and newly tuned feedback controllers.
+    # 3. 初期制御器と、調整後の制御器を組み立てる。
     controllers = {
         "initial PI": basis.controller(design["initial"]),
         "VRFT least squares": basis.controller(direct.parameters),
         "VRFT PANOC": basis.controller(iterative.parameters),
     }
 
-    # 5. Run independent closed loops from zero state with a unit-step command.
-    # At time k: measure y(k), compute u(k), then advance the plant to x(k+1).
+    # 4. 各制御器の閉ループを初期状態ゼロから独立にシミュレーションする。
+    # 各時刻で y(k) を測定し、偏差から u(k) を計算して x(k+1) を更新する。
     reference = np.ones(design["simulation_count"])
     desired = np.zeros(reference.size)
     trajectories = {name: np.zeros(reference.size) for name in controllers}
@@ -123,8 +114,11 @@ def run_demo(design=None):
 
 
 def plot_demo(result):
-    """6. Display the experiment, tracking response, and control input."""
-    from sample.simulation_manager.visualize.simulation_plotter_dash import SimulationPlotterDash
+    """収集した入出力データ、目標追従応答、制御入力を描画する。"""
+    from sample.simulation_manager.visualize.simulation_plotter_dash import (
+        SimulationPlotterDash,
+    )
+
     plotter = SimulationPlotterDash(activate_dump=False)
     time = result["time"].reshape(-1, 1)
     outputs = {"reference": result["reference"], "desired": result["desired"],
@@ -152,15 +146,10 @@ def plot_demo(result):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--no-plot", action="store_true",
-                        help="skip interactive HTML plotting for automated runs")
-    parser.add_argument("--output-dir", type=Path,
-                        help="C++ generated-header destination (default: repository root)")
-    parser.add_argument("--check-generated", action="store_true",
-                        help="verify the generated header without changing it")
+                        help="応答のHTML描画を省略する")
     args = parser.parse_args()
 
     design = create_design()
-    generate_cpp(design, args.output_dir, args.check_generated)
     result = run_demo(design)
     print(f"VRFT experiment: {design['sample_count']} input/output samples, "
           f"sample time={design['sample_time']} s")
